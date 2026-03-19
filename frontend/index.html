@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cloud Platform</title>
+</head>
+<body>
+  <h1>Cloud Platform Frontend</h1>
+  <p>This is a static frontend started from your workspace.</p>
+  <script>
+    fetch('/api/hello')
+      .then(res => res.json())
+      .then(data => {
+        const p = document.createElement('p');
+        p.textContent = 'Backend response: ' + JSON.stringify(data);
+        document.body.append(p);
+      })
+      .catch(err => {
+        const p = document.createElement('p');
+        p.textContent = 'Error fetching backend: ' + err;
+        document.body.append(p);
+      });
+  </script>
+</body>
+</html>

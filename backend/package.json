@@ -1,0 +1,17 @@
+{
+  "name": "cloud-platform-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "lint": "echo 'no lint configured yet'",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
