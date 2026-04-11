@@ -14,6 +14,7 @@ module.exports = [
         require: 'readonly',
         describe: 'readonly',
         it: 'readonly',
+        afterAll: 'readonly',
         expect: 'readonly'
       }
     },
