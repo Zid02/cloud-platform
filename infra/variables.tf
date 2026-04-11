@@ -10,6 +10,12 @@ variable "app_name" {
   default     = "cloud-platform"
 }
 
+variable "ecr_repository_name" {
+  description = "ECR repository name used by the backend image"
+  type        = string
+  default     = "cloud-platform-backend"
+}
+
 variable "container_port" {
   description = "Which container port the app listens on"
   type        = number
@@ -25,4 +31,10 @@ variable "desired_count" {
   description = "ECS desired count"
   type        = number
   default     = 1
+}
+
+variable "frontend_bucket_name" {
+  description = "Optional custom S3 bucket name for frontend assets"
+  type        = string
+  default     = ""
 }

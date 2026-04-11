@@ -7,24 +7,39 @@ on:
     branches: [main, develop]
 
 jobs:
-  build:
+  backend-quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install backend deps
         run: |
           cd backend
           npm ci
-      - name: Install frontend deps (none)
-        run: echo "No frontend npm dependencies yet"
+
+      - name: Lint backend
+        run: |
+          cd backend
+          npm run lint
+
       - name: Run backend tests
         run: |
           cd backend
           npm test
-      - name: Lint placeholder
+
+      - name: Run coverage gate
         run: |
-          echo "Lint step placeholder"
+          cd backend
+          npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage

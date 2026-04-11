@@ -9,7 +9,10 @@
   <h1>Cloud Platform Frontend</h1>
   <p>This is a static frontend started from your workspace.</p>
   <script>
-    fetch('/api/hello')
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const apiBase = isLocal ? 'http://localhost:4000' : '';
+
+    fetch(`${apiBase}/api/hello`)
       .then(res => res.json())
       .then(data => {
         const p = document.createElement('p');
