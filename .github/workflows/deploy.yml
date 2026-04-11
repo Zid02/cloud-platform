@@ -9,10 +9,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: cloud-platform-backend
       IMAGE_TAG: ${{ github.sha }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -32,16 +35,22 @@ jobs:
           npm run lint
           npm test
 
-      - name: Build backend image
-        run: |
-          docker build -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ./backend
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve AWS account and image URI
+        run: |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" >> "$GITHUB_ENV"
+          echo "IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}" >> "$GITHUB_ENV"
+
+      - name: Build backend image
+        run: |
+          docker build -t "${{ env.IMAGE_URI }}" ./backend
 
       - name: Login to ECR
         id: ecr-login
@@ -53,7 +62,7 @@ jobs:
 
       - name: Push image to ECR
         run: |
-          docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push "${{ env.IMAGE_URI }}"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -67,7 +76,7 @@ jobs:
       - name: Terraform apply
         working-directory: infra
         env:
-          TF_VAR_image_uri: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          TF_VAR_image_uri: ${{ env.IMAGE_URI }}
           TF_VAR_ecr_repository_name: ${{ env.ECR_REPOSITORY }}
         run: terraform apply -auto-approve
 

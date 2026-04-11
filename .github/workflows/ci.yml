@@ -9,6 +9,11 @@ on:
 jobs:
   backend-quality:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -18,24 +23,16 @@ jobs:
           node-version: '20'
 
       - name: Install backend deps
-        run: |
-          cd backend
-          npm ci
+        run: npm ci
 
       - name: Lint backend
-        run: |
-          cd backend
-          npm run lint
+        run: npm run lint
 
       - name: Run backend tests
-        run: |
-          cd backend
-          npm test
+        run: npm test
 
       - name: Run coverage gate
-        run: |
-          cd backend
-          npm run test:coverage
+        run: npm run test:coverage
 
       - name: Upload coverage report
         if: always()

@@ -5,6 +5,8 @@ module.exports = {
     globals: true,
     coverage: {
       provider: 'v8',
+      include: ['src/**/*.js'],
+      exclude: ['src/server.js'],
       reporter: ['text', 'lcov'],
       thresholds: {
         lines: 80,
