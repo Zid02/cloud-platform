@@ -38,3 +38,27 @@ variable "frontend_bucket_name" {
   type        = string
   default     = ""
 }
+
+variable "db_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_name" {
+  description = "Database name"
+  type        = string
+  default     = "cloudplatform"
+}
+
+variable "db_username" {
+  description = "Database master username"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_password" {
+  description = "Database master password"
+  type        = string
+  sensitive   = true
+}

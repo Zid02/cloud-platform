@@ -1,29 +1,12 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cloud Platform</title>
-</head>
-<body>
-  <h1>Cloud Platform Frontend</h1>
-  <p>This is a static frontend started from your workspace.</p>
-  <script>
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const apiBase = isLocal ? 'http://localhost:4000' : '';
-
-    fetch(`${apiBase}/api/hello`)
-      .then(res => res.json())
-      .then(data => {
-        const p = document.createElement('p');
-        p.textContent = 'Backend response: ' + JSON.stringify(data);
-        document.body.append(p);
-      })
-      .catch(err => {
-        const p = document.createElement('p');
-        p.textContent = 'Error fetching backend: ' + err;
-        document.body.append(p);
-      });
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

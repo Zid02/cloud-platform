@@ -22,3 +22,14 @@ output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID used for invalidations"
   value       = aws_cloudfront_distribution.frontend.id
 }
+
+output "db_endpoint" {
+  description = "RDS PostgreSQL endpoint"
+  value       = aws_db_instance.main.endpoint
+  sensitive   = true
+}
+
+output "db_secret_arn" {
+  description = "Secrets Manager ARN for database password"
+  value       = aws_secretsmanager_secret.db_password.arn
+}

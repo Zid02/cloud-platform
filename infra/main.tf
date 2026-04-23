@@ -70,6 +70,73 @@ resource "aws_security_group" "app" {
   }
 }
 
+resource "aws_security_group" "rds" {
+  name        = "${local.name_prefix}-rds-sg"
+  description = "Allow PostgreSQL access from ECS tasks"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_db_subnet_group" "main" {
+  name       = "${local.name_prefix}-db-subnet"
+  subnet_ids = data.aws_subnets.public.ids
+}
+
+resource "aws_db_instance" "main" {
+  identifier     = "${local.name_prefix}-db"
+  engine         = "postgres"
+  engine_version = "16.1"
+  instance_class = var.db_instance_class
+  allocated_storage = 20
+  storage_encrypted = true
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
+
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+
+  backup_retention_period = 7
+  skip_final_snapshot     = true
+  deletion_protection     = false
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_secretsmanager_secret" "db_password" {
+  name        = "${local.name_prefix}/db-password"
+  description = "Database password for ${var.app_name}"
+
+  recovery_window_in_days = 0
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = aws_secretsmanager_secret.db_password.id
+  secret_string = jsonencode({
+    password = var.db_password
+  })
+}
+
 resource "aws_lb" "app" {
   name               = "${local.name_prefix}-alb"
   internal           = false
@@ -253,6 +320,19 @@ resource "aws_ecs_task_definition" "app" {
           protocol      = "tcp"
         }
       ]
+      environment = [
+        { name = "NODE_ENV", value = "production" },
+        { name = "DB_HOST", value = aws_db_instance.main.address },
+        { name = "DB_PORT", value = "5432" },
+        { name = "DB_NAME", value = var.db_name },
+        { name = "DB_USER", value = var.db_username }
+      ]
+      secrets = [
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/db-password::password::"
+        }
+      ]
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${var.container_port}/api/health || exit 1"]
         interval    = 30
@@ -292,6 +372,8 @@ data "aws_vpc" "default" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_region" "current" {}
+
 data "aws_cloudfront_cache_policy" "caching_optimized" {
   name = "Managed-CachingOptimized"
 }
@@ -313,5 +395,121 @@ data "aws_subnets" "public" {
   filter {
     name   = "default-for-az"
     values = ["true"]
+  }
+}
+
+# ============================================
+# CloudWatch Logging & Monitoring
+# ============================================
+
+resource "aws_cloudwatch_log_group" "ecs" {
+  name              = "/ecs/${local.name_prefix}"
+  retention_in_days = 7
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  alarm_name          = "${local.name_prefix}-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS CPU utilization high"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.app_cluster.name
+    ServiceName = aws_ecs_service.app.name
+  }
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
+  alarm_name          = "${local.name_prefix}-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "ECS memory utilization high"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.app_cluster.name
+    ServiceName = aws_ecs_service.app.name
+  }
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "alb_target_unhealthy" {
+  alarm_name          = "${local.name_prefix}-alb-unhealthy"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Minimum"
+  threshold           = 1
+  alarm_description   = "ALB has no healthy targets"
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn
+    TargetGroup  = aws_lb_target_group.app_tg.arn
+  }
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
+  alarm_name          = "${local.name_prefix}-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS CPU utilization high"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.main.identifier
+  }
+
+  tags = {
+    Project = var.app_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
+  alarm_name          = "${local.name_prefix}-rds-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 80
+  alarm_description   = "RDS connections high"
+
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.main.identifier
+  }
+
+  tags = {
+    Project = var.app_name
   }
 }
