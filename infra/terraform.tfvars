@@ -10,4 +10,4 @@ image_uri = "<account-id>.dkr.ecr.us-east-1.amazonaws.com/cloud-platform-backend
 db_instance_class = "db.t3.micro"
 db_name = "cloudplatform"
 db_username = "postgres"
-db_password = "ChangeMeInProduction!"
+db_password = "Aurora@06"
